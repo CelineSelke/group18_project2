@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+#so my API key doesn't get leaked
+/android/app/google-services.json
+/lib/firebase_options.dart
