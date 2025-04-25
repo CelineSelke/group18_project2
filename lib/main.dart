@@ -1,36 +1,46 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const App());
 }
 
 class App extends StatelessWidget {
   const App({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData.dark(),
-      initialRoute: '/login',
-      routes: {
-        '/': (context) => const MainWrapper(),
-        '/login': (context) => const LoginPage(),
-        '/register': (context) => const RegisterPage(),
-      },
-      onGenerateRoute: (settings) {
-        if (settings.name == '/login' || settings.name == '/register') {
-          return PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                settings.name == '/login'
-                    ? const LoginPage()
-                    : const RegisterPage(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return child;
-            },
+      home: const AuthGate(),
+    );
+  }
+}
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
           );
         }
-        return null;
+        if (!snapshot.hasData) {
+          return LoginPage(auth: FirebaseAuth.instance);
+        }
+        return const MainWrapper();
       },
     );
   }
@@ -91,7 +101,6 @@ class _MainWrapperState extends State<MainWrapper> {
   }
 }
 
-
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -100,6 +109,13 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  void _signOut() async {
+    await _auth.signOut();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Signed out successfully'),
+    ));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -107,6 +123,12 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         backgroundColor: Color(0xFF592248),
         title: Text("Top Stocks"),
+        actions: <Widget>[
+          IconButton(
+            onPressed: _signOut,
+            icon: Icon(Icons.logout),
+          ),
+        ],
       ),
       body: Center(
         child: Column(
@@ -127,13 +149,25 @@ class NewsPage extends StatefulWidget {
 }
 
 class _NewsPageState extends State<NewsPage> {
-
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  void _signOut() async {
+    await _auth.signOut();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Signed out successfully'),
+    ));
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Color(0xFF592248),
         title: Text('News'),
+        actions: <Widget>[
+          IconButton(
+            onPressed: _signOut,
+            icon: Icon(Icons.logout),
+          ),
+        ],
       ),
       body: Center(
         child: Column(
@@ -154,13 +188,25 @@ class WatchList extends StatefulWidget {
 }
 
 class _WatchListState extends State<WatchList> {
-
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  void _signOut() async {
+    await _auth.signOut();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Signed out successfully'),
+    ));
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Color(0xFF592248),
         title: Text('Watchlist'),
+        actions: <Widget>[
+          IconButton(
+            onPressed: _signOut,
+            icon: Icon(Icons.logout),
+          ),
+        ],
       ),
       body: Center(
         child: Column(
@@ -181,13 +227,25 @@ class StockChart extends StatefulWidget {
 }
 
 class _StockChartState extends State<StockChart> {
-
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  void _signOut() async {
+    await _auth.signOut();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Signed out successfully'),
+    ));
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Color(0xFF592248),
         title: Text('Stock Charts'),
+        actions: <Widget>[
+          IconButton(
+            onPressed: _signOut,
+            icon: Icon(Icons.logout),
+          ),
+        ],
       ),
       body: Center(
         child: Column(
@@ -201,40 +259,110 @@ class _StockChartState extends State<StockChart> {
 }
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  LoginPage({Key? key, required this.auth}) : super(key: key);
+  final FirebaseAuth auth;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
 
 class _LoginPageState extends State<LoginPage> {
-  void _navigateToMainApp() {
-    Navigator.pushReplacementNamed(context, '/');
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _success = false;
+  bool _initialState = true;
+  String? _userEmail;
+
+  void _signInWithEmailAndPassword() async {
+    try {
+      await widget.auth.signInWithEmailAndPassword(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+
+      setState(() {
+        _success = true;
+        _userEmail = _emailController.text;
+        _initialState = false;
+      });
+
+      if (mounted) {
+        Navigator.popUntil(context, ModalRoute.withName('/'));
+      }
+      
+    } catch (e) {
+      setState(() {
+        _success = false;
+        _initialState = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Color(0xFF592248),
-        title: Text('Login'),
+        backgroundColor: const Color(0xFF592248),
+        title: const Text('Login'),
         automaticallyImplyLeading: false,
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            ElevatedButton(
-              onPressed: _navigateToMainApp,
-              child: const Text('Login'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pushNamed(context, '/register');
-              },
-              child: const Text('Register'),
-            ),
-          ],
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextFormField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  prefixIcon: Icon(Icons.email),
+                ),
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) => value?.isEmpty ?? true 
+                    ? 'Please enter your email'
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _passwordController,
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  prefixIcon: Icon(Icons.lock)),
+                obscureText: true,
+                validator: (value) => value?.isEmpty ?? true
+                    ? 'Please enter your password'
+                    : null,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _signInWithEmailAndPassword,
+                child: const Text('Sign In'),
+              ),
+              Container(
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  _initialState
+                      ? 'Please sign in'
+                      : _success
+                      ? 'Successfully signed in $_userEmail'
+                      : 'Sign in failed',
+                  style: TextStyle(color: _success ? Colors.green : Colors.red),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (context) => RegisterPage(auth: FirebaseAuth.instance),
+                  ));
+                },
+                child: const Text('Create new account'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -242,27 +370,119 @@ class _LoginPageState extends State<LoginPage> {
 }
 
 class RegisterPage extends StatefulWidget {
-  const RegisterPage({super.key});
+  RegisterPage({Key? key, required this.auth}) : super(key: key);
+  final FirebaseAuth auth;
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
 }
 
 class _RegisterPageState extends State<RegisterPage> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+  bool _success = false;
+  bool _initialState = true;
+  String? _userEmail;
+
+  void _register() async {
+    try {
+      await widget.auth.createUserWithEmailAndPassword(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+      setState(() {
+        _success = true;
+        _userEmail = _emailController.text;
+        _initialState = false;
+      });
+
+      if (mounted) {
+        Navigator.popUntil(context, ModalRoute.withName('/'));
+      }
+
+    } catch (e) {
+      setState(() {
+        _success = false;
+        _initialState = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Color(0xFF592248),
-        title: Text('Register'),
+        backgroundColor: const Color(0xFF592248),
+        title: const Text('Register'),
         automaticallyImplyLeading: false,
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-          ],
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextFormField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  prefixIcon: Icon(Icons.email),
+                ),
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter some text';
+                  }
+                  else if (!emailRegex.hasMatch(value)) {
+                    return 'Please enter a valid email';
+                  }
+                  return null;
+              },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _passwordController,
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  prefixIcon: Icon(Icons.lock)),
+                obscureText: true,
+                validator: (value) {
+                  if(value == null || value.isEmpty) {
+                    return 'Please enter some text';
+                  }
+                  else if (value.length < 6) {
+                    return 'Please enter at least 6 characters';
+                  }
+                  return null;
+                }
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _register,
+                child: const Text('Register'),
+              ),
+              Container(
+                alignment: Alignment.center,
+                child: Text(
+                  _initialState
+                      ? 'Please Register'
+                  : _success
+                      ? 'Successfully registered $_userEmail'
+                      : 'Registration failed',
+                  style: TextStyle(color: _success ? Colors.green : Colors.red),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: const Text('Login to Account'),
+              ),
+            ],
+          ),
         ),
       ),
     );
