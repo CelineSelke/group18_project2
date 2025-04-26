@@ -47,3 +47,4 @@ app.*.map.json
 #so my API key doesn't get leaked
 /android/app/google-services.json
 /lib/firebase_options.dart
+.env
