@@ -118,7 +118,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final List<String> _symbols = ['AAPL', 'GOOGL', 'MSFT', 'NVDA', 'BTC', 'ETH', 'SHEL', 'XOM', 'CVX'];
+  final List<String> _symbols = ['AAPL', 'GOOGL', 'MSFT', 'NVDA', 'BTC', 'ETH', 'SHEL', 'XOM', 'CVX', 'TSLA', 'META', 'AMD', 'PYPL', 'COIN', 'INTU'];
   final FirebaseAuth _auth = FirebaseAuth.instance;
   late Future<List<StockQuote>> _futureStockQuotes;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -412,8 +412,8 @@ class _WatchListState extends State<WatchList> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final user = FirebaseAuth.instance.currentUser;
-  final List<String> _tech = ['AAPL', 'GOOGL', 'MSFT', 'NVDA'];
-  final List<String> _crypto = ['BTC', 'ETH'];
+  final List<String> _tech = ['AAPL', 'GOOGL', 'MSFT', 'NVDA', 'TSLA', 'PYPL', 'META', 'AMD', 'INTU'];
+  final List<String> _crypto = ['BTC', 'ETH', 'COIN'];
   final List<String> _energy = ['SHEL', 'XOM', 'CVX'];
 
   Stream<List<String>> get _watchlistStream {
