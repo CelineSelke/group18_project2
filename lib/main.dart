@@ -1,10 +1,15 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'services/finnhub_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:syncfusion_flutter_charts/charts.dart';
+import 'package:intl/intl.dart';
+import 'services/finnhub_service.dart';
 import 'models/stock_quote.dart';
+import 'models/news_article.dart';
+import 'models/stock_price.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -303,31 +308,94 @@ class NewsPage extends StatefulWidget {
 
 class _NewsPageState extends State<NewsPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  late Future<List<NewsArticle>> _newsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _newsFuture = _fetchNews();
+  }
+
+  Future<List<NewsArticle>> _fetchNews() async {
+    final user = _auth.currentUser;
+    if (user == null) return [];
+    
+    final snapshot = await FirebaseFirestore.instance
+        .collection('watchlists')
+        .doc(user.uid)
+        .get();
+
+    final symbols = List<String>.from(snapshot.data()?['symbols'] ?? []);
+    if (symbols.isEmpty) return [];
+
+    return FinnhubService.getNewsForSymbols(symbols);
+  }
+
   void _signOut() async {
     await _auth.signOut();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('Signed out successfully'),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Signed out successfully')),
+    );
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Color(0xFF592248),
-        title: Text('News'),
-        actions: <Widget>[
+        backgroundColor: const Color(0xFF592248),
+        title: const Text('News'),
+        actions: [
           IconButton(
             onPressed: _signOut,
-            icon: Icon(Icons.logout),
+            icon: const Icon(Icons.logout),
           ),
         ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-          ],
-        ),
+      body: FutureBuilder<List<NewsArticle>>(
+        future: _newsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          
+          final articles = snapshot.data ?? [];
+          if (articles.isEmpty) {
+            return const Center(
+              child: Text('No news for your watchlist symbols'),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: articles.length,
+            itemBuilder: (context, index) {
+              final article = articles[index];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                child: ListTile(
+                  title: Text(article.headline),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(article.formattedDate),
+                      Text(
+                        article.symbol,
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
@@ -527,32 +595,131 @@ class StockChart extends StatefulWidget {
 
 class _StockChartState extends State<StockChart> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  List<String> _symbols = [];
+  String? _selectedSymbol;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWatchlist();
+  }
+
+  Future<void> _loadWatchlist() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    
+    final snapshot = await FirebaseFirestore.instance
+        .collection('watchlists')
+        .doc(user.uid)
+        .get();
+
+    setState(() {
+      _symbols = List<String>.from(snapshot.data()?['symbols'] ?? []);
+      if (_symbols.isNotEmpty) {
+        _selectedSymbol = _symbols.first;
+      }
+    });
+  }
+
   void _signOut() async {
     await _auth.signOut();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('Signed out successfully'),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Signed out successfully')),
+    );
   }
+
+  Widget buildChart(List<StockPrice> prices) {
+    final minY = prices.map((p) => p.close).reduce(min).floorToDouble();
+    final maxY = prices.map((p) => p.close).reduce(max).ceilToDouble();
+
+    return SfCartesianChart(
+      enableAxisAnimation: false,
+      plotAreaBorderWidth: 0,
+      primaryXAxis: DateTimeAxis(
+        dateFormat: DateFormat.E(),
+        intervalType: DateTimeIntervalType.days,
+        labelRotation: 0,
+      ),
+      primaryYAxis: NumericAxis(
+        minimum: minY,
+        maximum: maxY,
+        numberFormat: NumberFormat.simpleCurrency(decimalDigits: 2),
+      ),
+      series: <LineSeries<StockPrice, DateTime>>[
+        LineSeries(
+          enableTooltip: true,
+          dataSource: prices,
+          xValueMapper: (StockPrice p, _) => p.date,
+          yValueMapper: (StockPrice p, _) => p.close,
+          animationDuration: 0,
+          color: const Color(0xFF592248),
+          width: 3,
+          markerSettings: const MarkerSettings(
+            isVisible: true,
+            color: Color(0xFF592248),
+          ),
+        )
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Color(0xFF592248),
-        title: Text('Stock Charts'),
-        actions: <Widget>[
+        backgroundColor: const Color(0xFF592248),
+        title: const Text('Stock Charts'),
+        actions: [
           IconButton(
             onPressed: _signOut,
-            icon: Icon(Icons.logout),
+            icon: const Icon(Icons.logout),
           ),
         ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-          ],
-        ),
-      ),
+      body: _symbols.isEmpty
+        ? const Center(child: Text('Add symbols to watchlist to view charts'))
+        : Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Center(
+                  child: DropdownButton<String>(
+                    value: _selectedSymbol,
+                    items: _symbols.map((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedSymbol = value;
+                      });
+                    },
+                  ),
+                ),
+              ),
+              Expanded(
+                child: FutureBuilder<List<StockPrice>>(
+                  future: _selectedSymbol != null
+                    ? FinnhubService.getStockChartData(_selectedSymbol!)
+                    : null,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                      return Center(child: Text('Error: ${snapshot.error}'));
+                    }
+                    if (snapshot.hasData) {
+                      return buildChart(snapshot.data!);
+                    }
+                    return const Center(child: Text('Select a symbol'));
+                  },
+                )
+              ),
+            ],
+          ),
     );
   }
 }
