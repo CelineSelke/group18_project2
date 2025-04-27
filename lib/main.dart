@@ -597,6 +597,8 @@ class _StockChartState extends State<StockChart> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   List<String> _symbols = [];
   String? _selectedSymbol;
+  Color chartColor = Colors.green;
+  
 
   @override
   void initState() {
@@ -617,6 +619,23 @@ class _StockChartState extends State<StockChart> {
       _symbols = List<String>.from(snapshot.data()?['symbols'] ?? []);
       if (_symbols.isNotEmpty) {
         _selectedSymbol = _symbols.first;
+        setChartColor(_selectedSymbol!);
+      }
+      
+    });
+
+
+  }
+
+  Future<void> setChartColor(String symbol) async{
+    var quote = await FinnhubService.getStockQuote(_selectedSymbol!);
+
+    setState(() {
+      if(quote != null && quote.change > 0){
+        chartColor = Colors.green;
+      }
+      else{
+        chartColor = Colors.red;
       }
     });
   }
@@ -652,7 +671,7 @@ class _StockChartState extends State<StockChart> {
           xValueMapper: (StockPrice p, _) => p.date,
           yValueMapper: (StockPrice p, _) => p.close,
           animationDuration: 0,
-          color: const Color(0xFF592248),
+          color: chartColor,
           width: 3,
           markerSettings: const MarkerSettings(
             isVisible: true,
@@ -694,6 +713,7 @@ class _StockChartState extends State<StockChart> {
                     onChanged: (value) {
                       setState(() {
                         _selectedSymbol = value;
+                        setChartColor(_selectedSymbol!);
                       });
                     },
                   ),
