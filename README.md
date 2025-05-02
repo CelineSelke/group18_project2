@@ -1,16 +1,12 @@
-# group18_project2
+# Mobile App Development Group 18 Project 2
+### Celine Selke and David Xia
 
-A new Flutter project.
+## Description
 
-## Getting Started
+A stock tracking app that allows users to browse, save, and read news regarding popular stocks 
 
-This project is a starting point for a Flutter application.
+[Presentation](https://www.youtube.com/watch?v=n1cmM6tOrRM&ab_channel=MADGroup18)
 
-A few resources to get you started if this is your first Flutter project:
+## Installation
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Included in the Releases tab is an APK file which can be installed in a physical Android device or ran through an Android emulator such as Android Studio 
